@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background-color: #F9FAFB;
+    color: #1F2937;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+  input, select, textarea { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+}
+
+@layer components {
+  .gradient-text { @apply bg-gradient-to-r from-primary-600 to-accent-pink bg-clip-text text-transparent; }
+  .gradient-purple { @apply bg-gradient-to-r from-primary-600 to-primary-500; }
+  .gradient-btn { @apply bg-gradient-to-r from-primary-600 to-primary-500 text-white font-semibold; }
+  .card-shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+  .card-shadow-hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04); }
+}
+
+@layer utilities {
+  .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .hide-scrollbar::-webkit-scrollbar { display: none; }
+}
