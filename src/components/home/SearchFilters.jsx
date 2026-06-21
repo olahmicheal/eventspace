@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, SlidersHorizontal, X, MapPin, Tag, Star } from 'lucide-react';
+import { SlidersHorizontal, X, MapPin, Tag, Star } from 'lucide-react';
 import { useVenueStore } from '../../stores/venueStore';
 import { locations, priceRanges, serviceStandards } from '../../data/mockVenues';
 
@@ -9,36 +9,23 @@ export default function SearchFilters() {
     selectedLocation, setLocation,
     selectedPriceRange, setPriceRange,
     selectedServiceStandard, setServiceStandard,
-    searchQuery, setSearchQuery
   } = useVenueStore();
 
   return (
     <div className="px-4 py-3">
       <div className="max-w-lg mx-auto">
-        {/* Search Bar */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="flex-1 flex items-center bg-white rounded-xl border border-gray-200 px-3 py-2.5">
-            <Search size={18} className="text-gray-400 mr-2" />
-            <input
-              type="text"
-              placeholder="Search venues, locations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 text-sm text-gray-700 outline-none bg-transparent"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="ml-2">
-                <X size={16} className="text-gray-400" />
-              </button>
-            )}
-          </div>
+        {/* Filter Toggle Button */}
+        <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`p-2.5 rounded-xl border transition-colors ${
-              showFilters ? 'bg-primary-50 border-primary-200 text-primary-600' : 'bg-white border-gray-200 text-gray-500'
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border transition-colors ${
+              showFilters 
+                ? 'bg-primary-50 border-primary-200 text-primary-600' 
+                : 'bg-white border-gray-200 text-gray-600'
             }`}
           >
-            <SlidersHorizontal size={20} />
+            <SlidersHorizontal size={18} />
+            <span className="text-sm font-medium">Filters</span>
           </button>
         </div>
 

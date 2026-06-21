@@ -1,13 +1,23 @@
+import { useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import BackButton from '../components/layout/BackButton'
 import WhatsAppFAB from '../components/layout/WhatsAppFAB'
 import Footer from '../components/layout/Footer'
 import BookingForm from '../components/booking/BookingForm'
-import { getVenueById } from '../data/mockVenues'
+import { useVenueStore } from '../stores/venueStore'
 
 export default function BookingPage() {
   const { id } = useParams()
-  const venue = getVenueById(id)
+  const { venues, fetchVenues } = useVenueStore()
+
+  // Fetch venues if not loaded yet
+  useEffect(() => {
+    if (venues.length === 0) {
+      fetchVenues()
+    }
+  }, [venues.length, fetchVenues])
+
+  const venue = venues.find(v => v.id === id)
 
   if (!venue) {
     return (
@@ -29,7 +39,7 @@ export default function BookingPage() {
       </div>
 
       <main className="flex-1">
-        <BookingForm />
+        <BookingForm venue={venue} />
       </main>
 
       <Footer />

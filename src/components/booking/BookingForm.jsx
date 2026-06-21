@@ -1,15 +1,46 @@
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { Calendar, ChevronDown, Check, Shield } from 'lucide-react';
-import { getVenueById } from '../../data/mockVenues';
+import { useNavigate } from 'react-router-dom';
+import { Calendar, ChevronDown, Check, Shield, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { eventTypes } from '../../data/mockVenues';
 import { TRUST_BADGES } from '../../lib/constants';
 import PricingCard from '../venue/PricingCard';
 
-export default function BookingForm() {
-  const { id } = useParams();
+// Email helper — ONLY ONE COPY
+const sendBookingEmail = async ({ to, bookingId, status, venueName, totalAmount, customerName }) => {
+  console.log('Sending email with:', { to, bookingId, status, venueName, totalAmount, customerName })
+  
+  try {
+    const response = await fetch('https://vppcxubyjgzfkkamrirh.supabase.co/functions/v1/hyper-action', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        to,
+        bookingId,
+        status,
+        venueName,
+        totalAmount,
+        customerName,
+      }),
+    })
+    
+    const result = await response.json()
+    console.log('Email response:', result)
+    
+    if (!response.ok) {
+      console.error('Email failed:', result)
+    }
+  } catch (err) {
+    console.error('Email fetch error:', err)
+  }
+}
+
+export default function BookingForm({ venue }) {
   const navigate = useNavigate();
-  const venue = getVenueById(id);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     fullName: '', email: '', phone: '', eventType: '',
@@ -25,10 +56,78 @@ export default function BookingForm() {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    navigate('/success');
+  const calculateTotal = () => {
+    if (!formData.startTime || !formData.endTime) return 0;
+    
+    const parseTime = (timeStr) => {
+      const [time, period] = timeStr.split(' ');
+      let [hours] = time.split(':').map(Number);
+      if (period === 'PM' && hours !== 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+      return hours;
+    };
+
+    const start = parseTime(formData.startTime);
+    const end = parseTime(formData.endTime);
+    const hours = Math.max(end - start, venue.minimumHours);
+    
+    return venue.pricePerHour * hours;
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+
+    try {
+      const totalAmount = calculateTotal()
+
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert({
+          venue_id: venue.id,
+          customer_name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          event_type: formData.eventType,
+          event_date: formData.eventDate,
+          start_time: formData.startTime,
+          end_time: formData.endTime,
+          expected_guests: parseInt(formData.expectedGuests) || 0,
+          total_amount: totalAmount,
+          special_requests: formData.specialRequests,
+          status: 'pending',
+        })
+        .select()
+
+      if (error) throw error
+
+      // Send pending email
+      await sendBookingEmail({
+        to: formData.email,
+        bookingId: data[0].id,
+        status: 'pending',
+        venueName: venue.name,
+        totalAmount,
+        customerName: formData.fullName,
+      })
+
+      navigate('/success', { 
+        state: { 
+          bookingId: data[0].id,
+          venueName: venue.name,
+          totalAmount,
+          eventDate: formData.eventDate,
+          startTime: formData.startTime,
+          endTime: formData.endTime
+        } 
+      })
+    } catch (err) {
+      console.error('Booking error:', err)
+      alert('Failed to submit booking. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   if (!venue) return null;
 
@@ -80,7 +179,7 @@ export default function BookingForm() {
             <ChevronDown size={16} className="text-gray-400" />
           </button>
           {showEventType && (
-            <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-card border border-gray-100 z-20 max-h-60 overflow-y-auto">
+            <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-20 max-h-60 overflow-y-auto">
               {eventTypes.map((type) => (
                 <button key={type} type="button" onClick={() => { handleChange('eventType', type); setShowEventType(false); }}
                   className={`w-full text-left px-4 py-3 text-sm hover:bg-gray-50 ${formData.eventType === type ? 'text-primary-600 font-medium bg-primary-50' : 'text-gray-700'}`}>
@@ -110,7 +209,7 @@ export default function BookingForm() {
               <ChevronDown size={16} className="text-gray-400" />
             </button>
             {showStartTime && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-card border border-gray-100 z-20 max-h-48 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-20 max-h-48 overflow-y-auto">
                 {timeSlots.map((time) => (
                   <button key={time} type="button" onClick={() => { handleChange('startTime', time); setShowStartTime(false); }}
                     className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 ${formData.startTime === time ? 'text-primary-600 font-medium bg-primary-50' : 'text-gray-700'}`}>
@@ -129,7 +228,7 @@ export default function BookingForm() {
               <ChevronDown size={16} className="text-gray-400" />
             </button>
             {showEndTime && (
-              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-card border border-gray-100 z-20 max-h-48 overflow-y-auto">
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl shadow-lg border border-gray-100 z-20 max-h-48 overflow-y-auto">
                 {timeSlots.map((time) => (
                   <button key={time} type="button" onClick={() => { handleChange('endTime', time); setShowEndTime(false); }}
                     className={`w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 ${formData.endTime === time ? 'text-primary-600 font-medium bg-primary-50' : 'text-gray-700'}`}>
@@ -157,9 +256,15 @@ export default function BookingForm() {
             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none" />
         </div>
 
-        <button type="submit"
-          className="w-full py-4 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-primary-500/25">
-          Request to Book <span className="text-lg">→</span>
+        <button type="submit" disabled={isSubmitting}
+          className="w-full py-4 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-semibold rounded-xl flex items-center justify-center gap-2 hover:opacity-90 transition-opacity shadow-lg shadow-primary-500/25 disabled:opacity-50">
+          {isSubmitting ? (
+            <>
+              <Loader2 size={20} className="animate-spin" /> Submitting...
+            </>
+          ) : (
+            <>Request to Book <span className="text-lg">→</span></>
+          )}
         </button>
 
         <div className="space-y-3 pt-2">

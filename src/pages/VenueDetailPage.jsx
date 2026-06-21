@@ -1,6 +1,6 @@
+import { useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { MapPin, Users, Star, Heart } from 'lucide-react'
-import { getVenueById } from '../data/mockVenues'
 import { useVenueStore } from '../stores/venueStore'
 import BackButton from '../components/layout/BackButton'
 import WhatsAppFAB from '../components/layout/WhatsAppFAB'
@@ -14,9 +14,16 @@ import PricingCard from '../components/venue/PricingCard'
 export default function VenueDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const venue = getVenueById(id)
-  const isFav = useVenueStore((state) => state.isFavorite(id))
-  const toggleFav = useVenueStore((state) => state.toggleFavorite)
+  const { venues, fetchVenues, isFavorite, toggleFavorite } = useVenueStore()
+
+  useEffect(() => {
+    if (venues.length === 0) {
+      fetchVenues()
+    }
+  }, [venues.length, fetchVenues])
+
+  const venue = venues.find(v => v.id === id)
+  const isFav = isFavorite(id)
 
   if (!venue) {
     return (
@@ -45,7 +52,7 @@ export default function VenueDetailPage() {
           <div className="max-w-lg mx-auto">
             <div className="flex items-start justify-between mb-2">
               <h1 className="text-2xl font-bold text-gray-900">{venue.name}</h1>
-              <button onClick={() => toggleFav(venue.id)}
+              <button onClick={() => toggleFavorite(venue.id)}
                 className="w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-sm border border-gray-100">
                 <Heart size={20} className={isFav ? 'fill-red-500 text-red-500' : 'text-gray-400'} strokeWidth={1.5} />
               </button>
@@ -65,7 +72,7 @@ export default function VenueDetailPage() {
               <span className="text-sm text-gray-500">({venue.reviewCount} reviews)</span>
             </div>
             <div className="flex flex-wrap gap-2 mb-4">
-              {venue.tags.map((tag, i) => <span key={i} className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">{tag}</span>)}
+              {venue.tags?.map((tag, i) => <span key={i} className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">{tag}</span>)}
             </div>
             <p className="text-sm text-gray-600 leading-relaxed">{venue.description}</p>
           </div>

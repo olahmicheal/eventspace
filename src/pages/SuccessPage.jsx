@@ -1,9 +1,11 @@
-import { useNavigate } from 'react-router-dom'
-import { Check, Calendar, Clock, MapPin } from 'lucide-react'
+import { useNavigate, useLocation } from 'react-router-dom'
+import { Check, Calendar, Clock, MapPin, CreditCard } from 'lucide-react'
 import Footer from '../components/layout/Footer'
 
 export default function SuccessPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { bookingId, venueName, totalAmount, eventDate, startTime, endTime } = location.state || {}
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -15,10 +17,10 @@ export default function SuccessPage() {
 
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Booking Request Sent!</h1>
           <p className="text-sm text-gray-500 mb-8 leading-relaxed">
-            Your booking request has been submitted. The venue will contact you shortly to confirm availability.
+            Your booking request for <strong>{venueName || 'the venue'}</strong> has been submitted. The venue will contact you shortly to confirm availability.
           </p>
 
-          <div className="bg-white rounded-2xl p-5 card-shadow mb-8 text-left">
+          <div className="bg-white rounded-2xl p-5 shadow-sm mb-8 text-left">
             <h3 className="text-sm font-semibold text-gray-900 mb-4">Booking Details</h3>
             <div className="space-y-3">
               <div className="flex items-center gap-3">
@@ -27,7 +29,7 @@ export default function SuccessPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Event Date</p>
-                  <p className="text-sm font-medium text-gray-900">Pending Confirmation</p>
+                  <p className="text-sm font-medium text-gray-900">{eventDate || 'Pending Confirmation'}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -36,7 +38,9 @@ export default function SuccessPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-500">Duration</p>
-                  <p className="text-sm font-medium text-gray-900">Pending Confirmation</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {startTime && endTime ? `${startTime} - ${endTime}` : 'Pending Confirmation'}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -48,6 +52,22 @@ export default function SuccessPage() {
                   <p className="text-sm font-medium text-amber-600">Awaiting Venue Response</p>
                 </div>
               </div>
+              {totalAmount > 0 && (
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 bg-primary-50 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <CreditCard size={16} className="text-primary-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Total Amount</p>
+                    <p className="text-sm font-medium text-gray-900">₦{totalAmount.toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
+              {bookingId && (
+                <div className="pt-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-400">Booking ID: {bookingId.slice(0, 8)}</p>
+                </div>
+              )}
             </div>
           </div>
 
