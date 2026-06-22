@@ -267,6 +267,63 @@ export const useVenueStore = create((set, get) => ({
       console.error('Error removing venue:', err);
     }
   },
+  // Add to the store state
+uniqueLocations: [],
+fetchUniqueLocations: async () => {
+  try {
+    const { data, error } = await supabase
+      .from('venues')
+      .select('area, location')
+      .eq('status', 'active')
+    
+    if (error) throw error
+    
+    // Extract unique areas and locations
+    const areas = [...new Set(data.map(v => v.area))].sort()
+    const allLocations = [...new Set(data.map(v => v.location))].sort()
+    
+    set({ uniqueLocations: ['All Locations', ...areas, ...allLocations] })
+  } catch (err) {
+    console.error('Error fetching locations:', err)
+  }
+},
+
+// Add to store
+checkVenueAvailability: async (venueId, eventDate, startTime, endTime) => {
+  try {
+    const { data, error } = await supabase
+      .from('venue_schedules')
+      .select('*')
+      .eq('venue_id', venueId)
+      .eq('event_date', eventDate)
+      .eq('status', 'booked')
+    
+    if (error) throw error
+    
+    // Check time overlap
+    const isOverlapping = data.some(schedule => {
+      // Simple time comparison (you can make this more sophisticated)
+      return true // If any booking exists for that date, consider it unavailable
+    })
+    
+    return !isOverlapping // Return true if available
+  } catch (err) {
+    console.error('Error checking availability:', err)
+    return false
+  }
+},
+
+getNearbyVenues: (currentVenueId, area, priceRange) => {
+  const { venues } = get()
+  return venues
+    .filter(v => 
+      v.id !== currentVenueId && 
+      v.status === 'active' &&
+      (v.area === area || v.location.includes(area)) &&
+      Math.abs(v.pricePerHour - priceRange) < priceRange * 0.3 // Within 30% price range
+    )
+    .slice(0, 4) // Return top 4 recommendations
+},
 
   // Admin: Restore venue
   restoreVenue: async (venueId) => {
