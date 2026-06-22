@@ -1,15 +1,18 @@
 import { useState } from 'react'
-import { X, Banknote, Percent } from 'lucide-react'
+import { X, Banknote } from 'lucide-react'
 
 export default function PaymentForm({ booking, onSubmit, onCancel }) {
   const [bankName, setBankName] = useState('First Bank of Nigeria')
   const [accountName, setAccountName] = useState('')
   const [accountNumber, setAccountNumber] = useState('')
-  const [commissionPercent, setCommissionPercent] = useState(10) // Default 10%
+  const [commissionPercent, setCommissionPercent] = useState(10)
   const [notes, setNotes] = useState('')
 
+  // Commission is calculated from base amount for INTERNAL tracking only
   const commissionAmount = Math.round(booking.totalAmount * (commissionPercent / 100))
-  const finalAmount = booking.totalAmount + commissionAmount
+  
+  // User pays ONLY the base amount (venue price)
+  const userPays = booking.totalAmount
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -17,17 +20,17 @@ export default function PaymentForm({ booking, onSubmit, onCancel }) {
       bankName,
       accountName,
       accountNumber,
-      commissionPercent,
-      commissionAmount,
-      finalAmount,
+      commissionPercent,      // For internal tracking
+      commissionAmount,       // For internal tracking
+      baseAmount: booking.totalAmount,  // What user actually pays
       notes,
-      paymentDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString() // 48 hours
+      paymentDeadline: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
     })
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl max-w-md w-full p-6">
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-900">Payment Details</h2>
           <button onClick={onCancel} className="text-gray-400 hover:text-gray-600">
@@ -39,14 +42,15 @@ export default function PaymentForm({ booking, onSubmit, onCancel }) {
           <p className="text-sm text-blue-800">
             <strong>Booking:</strong> {booking.venueName}<br />
             <strong>Customer:</strong> {booking.customerName}<br />
-            <strong>Base Amount:</strong> ₦{booking.totalAmount?.toLocaleString()}
+            <strong>Amount to Collect:</strong> ₦{userPays?.toLocaleString()}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name *</label>
             <select
+              required
               value={bankName}
               onChange={(e) => setBankName(e.target.value)}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg"
@@ -60,7 +64,7 @@ export default function PaymentForm({ booking, onSubmit, onCancel }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account Name *</label>
             <input
               required
               type="text"
@@ -72,7 +76,7 @@ export default function PaymentForm({ booking, onSubmit, onCancel }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Account Number *</label>
             <input
               required
               type="text"
@@ -84,9 +88,10 @@ export default function PaymentForm({ booking, onSubmit, onCancel }) {
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Commission ({commissionPercent}%)
+          {/* Internal Commission Tracking - Admin Only */}
+          <div className="border-t border-dashed border-gray-200 pt-4">
+            <label className="block text-sm font-medium text-gray-500 mb-1">
+              Internal Commission ({commissionPercent}%)
             </label>
             <div className="flex items-center gap-2">
               <input
@@ -97,24 +102,20 @@ export default function PaymentForm({ booking, onSubmit, onCancel }) {
                 onChange={(e) => setCommissionPercent(Number(e.target.value))}
                 className="flex-1"
               />
-              <span className="text-sm font-medium text-gray-900 w-16">
+              <span className="text-sm text-gray-500 w-20">
                 ₦{commissionAmount.toLocaleString()}
               </span>
             </div>
+            <p className="text-xs text-gray-400 mt-1">
+              For internal revenue tracking only. Not added to customer payment.
+            </p>
           </div>
 
+          {/* What user actually pays */}
           <div className="bg-green-50 rounded-lg p-3">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Base Amount:</span>
-              <span className="font-medium">₦{booking.totalAmount?.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-sm mt-1">
-              <span className="text-gray-600">Commission ({commissionPercent}%):</span>
-              <span className="font-medium">₦{commissionAmount.toLocaleString()}</span>
-            </div>
-            <div className="flex justify-between text-base font-bold mt-2 pt-2 border-t border-green-200">
-              <span className="text-green-800">Total Due:</span>
-              <span className="text-green-800">₦{finalAmount.toLocaleString()}</span>
+              <span className="text-gray-600">Customer Pays:</span>
+              <span className="font-bold text-green-800">₦{userPays.toLocaleString()}</span>
             </div>
           </div>
 
