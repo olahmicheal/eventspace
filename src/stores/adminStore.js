@@ -100,48 +100,115 @@ export const useAdminStore = create((set, get) => ({
     }
   },
 
-  // Update booking status
- updateBookingStatus: async (bookingId, status) => {
+ // Update booking status with payment details and email
+updateBookingStatus: async (bookingId, status, paymentDetails = null) => {
   try {
-    // First, get booking details for the email
-    const { data: booking } = await supabase
+    // Get full booking details
+    const { data: booking, error: fetchError } = await supabase
       .from('bookings')
-      .select('*, venues(name)')
+      .select('*, venues(name, location, area, price_per_hour)')
       .eq('id', bookingId)
       .single()
 
-    // Update status in database
-    const { error } = await supabase
+    if (fetchError) throw fetchError
+
+    // Build update data
+    const updateData = { status }
+    
+    if (paymentDetails) {
+      updateData.payment_details = paymentDetails
+      updateData.final_amount = paymentDetails.finalAmount
+      updateData.commission_amount = paymentDetails.commissionAmount
+    }
+    
+    if (status === 'completed') {
+      updateData.payment_date = new Date().toISOString()
+      updateData.cancellation_deadline = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
+    }
+
+    // Update in database
+    const { error: updateError } = await supabase
       .from('bookings')
-      .update({ status })
+      .update(updateData)
       .eq('id', bookingId)
 
-    if (error) throw error
+    if (updateError) throw updateError
 
-    // Send email notification
+    // Build email payload
+    const emailPayload = {
+      to: booking.email,
+      bookingId: booking.id,
+      status,
+      venueName: booking.venues?.name || booking.venue_name,
+      totalAmount: booking.total_amount,
+      customerName: booking.customer_name,
+      eventDate: booking.event_date,
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      duration: booking.end_time && booking.start_time ? 
+        (parseInt(booking.end_time) - parseInt(booking.start_time)) : 4,
+    }
+
+    // Add payment details for confirmed email
+    if (status === 'confirmed' && paymentDetails) {
+      emailPayload.bankName = paymentDetails.bankName
+      emailPayload.accountName = paymentDetails.accountName
+      emailPayload.accountNumber = paymentDetails.accountNumber
+      emailPayload.commissionAmount = paymentDetails.commissionAmount
+      emailPayload.finalAmount = paymentDetails.finalAmount
+      emailPayload.paymentDeadline = paymentDetails.paymentDeadline
+    }
+
+    // Add receipt details for completed email
+    if (status === 'completed') {
+      emailPayload.finalAmount = booking.final_amount || booking.total_amount
+      emailPayload.paymentDate = new Date().toISOString()
+      emailPayload.cancellationDeadline = updateData.cancellation_deadline
+    }
+
+    // Add recommendations for rejected email
+    if (status === 'cancelled') {
+      const { data: nearbyVenues } = await supabase
+        .from('venues')
+        .select('id, name, location, area, price_per_hour, images, rating')
+        .eq('status', 'active')
+        .neq('id', booking.venue_id)
+        .limit(4)
+
+      if (nearbyVenues) {
+        emailPayload.recommendedVenues = nearbyVenues.map(v => ({
+          id: v.id,
+          name: v.name,
+          location: v.location,
+          pricePerHour: v.price_per_hour,
+          images: v.images,
+          rating: v.rating,
+        }))
+      }
+    }
+
+    // Send email via Edge Function
     await fetch('https://vppcxubyjgzfkkamrirh.supabase.co/functions/v1/hyper-action', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({
-        to: booking.email,
-        bookingId: booking.id,
-        status,
-        venueName: booking.venues?.name || booking.venue_name,
-        totalAmount: booking.total_amount,
-        customerName: booking.customer_name,
-      }),
+      body: JSON.stringify(emailPayload),
     })
 
+    // Update local state
     set(state => ({
       bookings: state.bookings.map(b =>
-        b.id === bookingId ? { ...b, status } : b
+        b.id === bookingId ? { ...b, status, ...updateData } : b
       )
     }))
+
+    return true
   } catch (err) {
     console.error('Error updating booking:', err)
+    alert('Failed to update booking: ' + err.message)
+    return false
   }
 },
 
